@@ -1,4 +1,4 @@
-# peribahasa
+# *peribahasa* - Random Indonesian Proverbs
 
 A command-line tool for displaying random Indonesian proverbs (*peribahasa*) with their meanings.
 
