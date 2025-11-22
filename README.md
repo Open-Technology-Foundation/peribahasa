@@ -26,7 +26,7 @@ A command-line tool for displaying random Indonesian proverbs (peribahasa) with 
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Open-Technology-Foundation/peribahasa.git
    cd peribahasa
    ```
 
