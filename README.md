@@ -1,10 +1,10 @@
 # peribahasa
 
-A command-line tool for displaying random Indonesian proverbs (peribahasa) with their meanings.
+A command-line tool for displaying random Indonesian proverbs (*peribahasa*) with their meanings.
 
 ## Overview
 
-`peribahasa` is a [BASH-CODING-STANDARD](https://github.com/Open-Technology-Foundation/bash-coding-standard)-compliant Bash script that retrieves and displays random Indonesian proverbs from a SQLite database. The tool intelligently tracks which proverbs have been displayed to ensure variety and automatically resets when all proverbs have been shown.
+`peribahasa` retrieves and displays random Indonesian proverbs from a SQLite database. The tool intelligently tracks which proverbs have been displayed to ensure variety and automatically resets when all proverbs have been shown.
 
 ## Features
 
@@ -20,25 +20,15 @@ A command-line tool for displaying random Indonesian proverbs (peribahasa) with 
 
 - Bash 5.2+
 - sqlite3
-- SQLite database: `peribahasa.db`
 
 ## Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Open-Technology-Foundation/peribahasa.git
-   cd peribahasa
-   ```
-
-2. Ensure the script is executable:
-   ```bash
-   chmod +x peribahasa
-   ```
-
-3. Verify the database exists:
-   ```bash
-   ls -l peribahasa.db
-   ```
+```bash
+git clone https://github.com/Open-Technology-Foundation/peribahasa.git
+cd peribahasa
+# Ensure the script is executable:
+chmod +x peribahasa
+```
 
 ## Usage
 
@@ -65,22 +55,17 @@ Display a random proverb in text format:
 
 Display proverb in HTML format:
 ```bash
-./peribahasa -f html
+peribahasa -f html
 ```
 
 Output to a file with verbose logging:
 ```bash
-./peribahasa -v -o output.txt
+peribahasa -v -o output.txt
 ```
 
 Limit proverb length to 100 characters:
 ```bash
-./peribahasa -m 100
-```
-
-Combined short options:
-```bash
-./peribahasa -vf html
+peribahasa -m 100
 ```
 
 ## Output Formats
@@ -107,6 +92,8 @@ The tool uses a SQLite database (`peribahasa.db`) with the following structure:
 - `artinya` - The meaning/translation
 - `dipakai` - Usage flag (0 = unused, 1 = used)
 
+`peribahasa` expects to find the database in the same directory that it is located.
+
 ## How It Works
 
 1. The script queries the database for unused proverbs (where `dipakai=0`)
@@ -114,22 +101,6 @@ The tool uses a SQLite database (`peribahasa.db`) with the following structure:
 3. A random proverb is selected from the unused pool
 4. The proverb is displayed in the chosen format
 5. The proverb is marked as used in the database
-
-## Development
-
-This project follows the [BASH-CODING-STANDARD](https://github.com/Open-Technology-Foundation/bash-coding-standard).
-
-### Coding Principles
-- K.I.S.S. (Keep It Simple, Stupid)
-- "The best process is no process"
-- "Everything should be made as simple as possible, but not any simpler"
-
-### Style Guidelines
-- 2-space indentation
-- `set -euo pipefail` for error handling
-- Descriptive variable names with `declare`/`local`
-- Prefer `[[` over `[` for conditionals
-- All scripts end with `#fin` marker
 
 ## Contributing
 
@@ -149,6 +120,3 @@ GNU General Public License v3.0 - see [LICENSE](LICENSE).
 
 Gary Dean (Biksu Okusi)
 
----
-
-**◉** Info | **▲** Warning | **✓** Success | **✗** Error
