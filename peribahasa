@@ -9,8 +9,8 @@ declare -r SCRIPT_DIR=${SCRIPT_PATH%/*} SCRIPT_NAME=${SCRIPT_PATH##*/}
 declare -r DB_PATH="$SCRIPT_DIR"/peribahasa.db
 
 declare -i VERBOSE=0
-declare -- FORMAT='text'
-declare -- OUTPUT='/dev/stdout'
+declare -- FORMAT=text
+declare -- OUTPUT=/dev/stdout
 declare -i MAXLEN=9999
 
 # Color definitions for terminal output
@@ -33,11 +33,11 @@ _msg() {
 # Standard messaging functions
 info() { ((VERBOSE)) || return 0; >&2 _msg "$@"; }
 error() { >&2 _msg "$@"; }
-die() { (($# > 1)) && error "${@:2}"; exit "${1:-0}"; }
+die() { (($# > 1)) && error "${@:2}" ||:; exit "${1:-0}"; }
 
 # HTML entity escaping
 html_escape() {
-  local -- text="${1:-}"
+  local -- text=${1:-}
   [[ -n "$text" ]] || return 0
   # Use sed for reliable HTML entity escaping
   # Escape in order: & first (to avoid double-escaping), then <, >, ", '
@@ -128,14 +128,14 @@ _get_random_peribahasa() {
   sqlite3 "$DB_PATH" "UPDATE peribahasa SET dipakai=1 WHERE id=$id;" || die 1 'Failed to update peribahasa status'
 }
 
-noarg() { (($# > 1)) || die 2 "Option ${1@Q}' requires an argument"; }
+noarg() { (($# > 1)) || die 2 "Option ${1@Q} requires an argument"; }
 
 # Main function
 main() {
   # Parse command-line arguments
   while (($#)); do case $1 in
     -f|--format)    noarg "$@"; shift
-                    FORMAT="$1"
+                    FORMAT=$1
                     [[ "$FORMAT" =~ ^(text|html)$ ]] || \
                         die 22 "Invalid format ${FORMAT@Q} (use: text|html)"
                     ;;
