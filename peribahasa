@@ -1,17 +1,18 @@
 #!/bin/bash
 set -euo pipefail
-shopt -s inherit_errexit extglob nullglob
+shopt -s inherit_errexit
 
 declare -r VERSION=1.0.0
 #shellcheck disable=SC2155
-declare -r SCRIPT_PATH=$(realpath -e "$0")
+declare -r SCRIPT_PATH=$(realpath -- "$0")
 declare -r SCRIPT_DIR=${SCRIPT_PATH%/*} SCRIPT_NAME=${SCRIPT_PATH##*/}
-declare -r DB_PATH="$SCRIPT_DIR"/peribahasa.db
+
+declare -r PERIBAHASA_DB=${PERIBAHASA_DB:-"$SCRIPT_DIR"/peribahasa.db}
 
 declare -i VERBOSE=0
 declare -- FORMAT=text
 declare -- OUTPUT=/dev/stdout
-declare -i MAXLEN=9999
+declare -i MAXLEN=9999 RESET=0
 
 # Color definitions for terminal output
 if [[ -t 1 && -t 2 ]]; then
@@ -35,6 +36,8 @@ info() { ((VERBOSE)) || return 0; >&2 _msg "$@"; }
 error() { >&2 _msg "$@"; }
 die() { (($# < 2)) || error "${@:2}"; exit "${1:-0}"; }
 
+noarg() { (($# > 1)) || die 2 "Option ${1@Q} requires an argument"; }
+
 # HTML entity escaping
 html_escape() {
   local -- text=${1:-}
@@ -49,60 +52,60 @@ html_escape() {
     -e "s/'/\&#39;/g"
 }
 
-# Display usage information
-usage() {
-  cat <<EOF
+show_help() {
+  cat <<HELP
 Usage: $SCRIPT_NAME [OPTIONS]
 
 Display a random Indonesian proverb (peribahasa) from database.
 Requires sqlite3.
 
 OPTIONS:
-  -f, --format FORMAT    Output format: text|html (default: text)
+  -f, --format FORMAT    Output format: text|html (def: text)
   -m, --maxlen LENGTH    Max length of output proverb
-  -o, --output FILENAME  Output to file (default: /dev/stdout)
+  -o, --output FILENAME  Output to file (def: /dev/stdout)
+  -R, --reset            Reset all 'used' flags
   -v, --verbose          Enable verbose output
   -q, --quiet            Suppress verbose output (default)
-  -V, --version          Display version information
-  -h, --help             Display this help message
+  -V, --version          Version information ($VERSION)
+  -h, --help             This help
 
 EXAMPLES:
   $SCRIPT_NAME
   $SCRIPT_NAME -f html
   $SCRIPT_NAME --format text --verbose
   $SCRIPT_NAME -vf html
-EOF
+HELP
 }
 
 # Reset all dipakai fields to 0
-_reset_all_dipakai() {
+reset_all_used_flags() {
   info 'Resetting all peribahasa to unused state...'
 
-  sqlite3 "$DB_PATH" <<'EOF' || die 1 'Failed to reset dipakai fields'
+  sqlite3 "$PERIBAHASA_DB" <<'RESET' || die 1 'Failed to reset dipakai fields'
 BEGIN TRANSACTION;
 UPDATE peribahasa SET dipakai=0;
 COMMIT;
-EOF
+RESET
 
   info 'All peribahasa have been reset'
 }
 
 # Get and display random peribahasa
-_get_random_peribahasa() {
+get_random_peribahasa() {
   local -i count id
   local -- peribahasa artinya result
 
   # Check count of unused peribahasa
-  count=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM peribahasa WHERE dipakai=0 AND (LENGTH(peribahasa) + LENGTH(artinya)) < $MAXLEN;") || die 1 "Failed to query database ${DB_PATH@Q}"
+  count=$(sqlite3 "$PERIBAHASA_DB" "SELECT COUNT(*) FROM peribahasa WHERE dipakai=0 AND (LENGTH(peribahasa) + LENGTH(artinya)) < $MAXLEN;") || die 1 "Failed to query database ${PERIBAHASA_DB@Q}"
   # If no unused peribahasa, reset all
-  ((count)) || _reset_all_dipakai
+  ((count)) || reset_all_used_flags
 
   # Get random unused peribahasa
-  result=$(sqlite3 "$DB_PATH" \
+  result=$(sqlite3 "$PERIBAHASA_DB" \
           "SELECT id, peribahasa, artinya FROM peribahasa WHERE dipakai=0 AND (LENGTH(peribahasa) + LENGTH(artinya)) < $MAXLEN ORDER BY RANDOM() LIMIT 1;") \
-            || die 1 'Failed to select random peribahasa'
+              || die 1 'Failed to select random peribahasa'
 
-  [[ -n "$result" ]] || die 1 "No peribahasa found in database ${DB_PATH@Q}"
+  [[ -n "$result" ]] || die 1 "No peribahasa found in database ${PERIBAHASA_DB@Q}"
 
   # Parse result (format: id|peribahasa|artinya)
   IFS='|' read -r id peribahasa artinya <<< "$result"
@@ -117,42 +120,42 @@ _get_random_peribahasa() {
         local -- escaped_peribahasa escaped_artinya
         escaped_peribahasa=$(html_escape "$peribahasa")
         escaped_artinya=$(html_escape "$artinya")
-        printf '\n%s\n' "<!-- peribahasa indonesia $(date '+%Y-%m-%d %H:%M') -->"
-        printf '%s\n' "<div class='peribahasa'>&ldquo;${escaped_peribahasa}&rdquo;</div>"
-        printf '%s\n' "<div class='artinya'>$escaped_artinya</div>"
+        cat <<HTML
+
+<!-- peribahasa indonesia $(date '+%Y-%m-%d %H:%M') -->
+<div class='peribahasa'>&ldquo;${escaped_peribahasa}&rdquo;</div>
+<div class='artinya'>$escaped_artinya</div>
+
+HTML
         ;;
     esac
   } >"$OUTPUT"
 
   # Mark as used
-  sqlite3 "$DB_PATH" "UPDATE peribahasa SET dipakai=1 WHERE id=$id;" || die 1 'Failed to update peribahasa status'
+  sqlite3 "$PERIBAHASA_DB" "UPDATE peribahasa SET dipakai=1 WHERE id=$id;" \
+      || die 1 'Failed to update peribahasa status'
 }
-
-noarg() { (($# > 1)) || die 2 "Option ${1@Q} requires an argument"; }
 
 # Main function
 main() {
   # Parse command-line arguments
   while (($#)); do case $1 in
-    -f|--format)    noarg "$@"; shift
-                    FORMAT=$1
+    -f|--format)    noarg "$@"; shift; FORMAT=$1
                     [[ "$FORMAT" =~ ^(text|html)$ ]] || \
                         die 22 "Invalid format ${FORMAT@Q} (use: text|html)"
                     ;;
-    -m|--maxlen)    noarg "$@"; shift
-                    MAXLEN=$1
-                    ;;
-    -o|--output)    noarg "$@"; shift
-                    OUTPUT=$1
-                    ;;
+    -m|--maxlen)    noarg "$@"; shift; MAXLEN=$1 ;;
+    -o|--output)    noarg "$@"; shift; OUTPUT=$1 ;;
+    -R|--reset)     RESET=1 ;;
+
     -v|--verbose)   VERBOSE=1 ;;
     -q|--quiet)     VERBOSE=0 ;;
-    -V|--version)   echo "$SCRIPT_NAME $VERSION"; return 0 ;;
-    -h|--help)      usage; return 0 ;;
 
-    # Short option bundling support
-    -[fvqVh]*)      #shellcheck disable=SC2046
-                    set -- '' $(printf -- '-%c ' $(grep -o . <<<"${1:1}")) "${@:2}" ;;
+    -V|--version)   echo "$SCRIPT_NAME $VERSION"; return 0 ;;
+    -h|--help)      show_help; return 0 ;;
+
+    -[fmoRvqVh]*) # Short option bundling
+                    set -- "${1:0:2}" "-${1:2}" "${@:2}"; continue ;;
     -*)             die 22 "Invalid option ${1@Q}" ;;
     *)              die 2 "Unexpected argument ${1@Q}" ;;
   esac; shift; done
@@ -161,10 +164,14 @@ main() {
   command -v sqlite3 >/dev/null || die 1 "${SCRIPT_NAME@Q} requires sqlite3" 'apt install sqlite3'
 
   # Validate database exists
-  [[ -f "$DB_PATH" ]] || die 5 "Database not found ${DB_PATH@Q}"
+  [[ -f "$PERIBAHASA_DB" ]] || die 5 "Database not found ${PERIBAHASA_DB@Q}"
+
+  if ((RESET)); then
+    reset_all_used_flags
+  fi
 
   # Get and display random peribahasa
-  _get_random_peribahasa
+  get_random_peribahasa
 }
 
 main "$@"
