@@ -45,6 +45,7 @@ Display a random proverb in text format:
 -f, --format FORMAT    Output format: text|html (default: text)
 -m, --maxlen LENGTH    Maximum combined length of proverb and meaning
 -o, --output FILENAME  Output to file (default: /dev/stdout)
+-R, --reset            Reset all usage flags to unused state
 -v, --verbose          Enable verbose output
 -q, --quiet            Suppress verbose output (default)
 -V, --version          Display version information
@@ -68,6 +69,11 @@ Limit proverb length to 100 characters:
 peribahasa -m 100
 ```
 
+Reset all proverbs to unused:
+```bash
+peribahasa -R
+```
+
 ## Output Formats
 
 ### Text Format (default)
@@ -78,7 +84,7 @@ There is a hidden agenda or ulterior motive
 
 ### HTML Format
 ```html
-<!-- peribahasa indonesia 2025-11-22 10:30 -->
+<!-- peribahasa indonesia YYYY-MM-DD HH:MM -->
 <div class='peribahasa'>&ldquo;Ada udang di balik batu&rdquo;</div>
 <div class='artinya'>There is a hidden agenda or ulterior motive</div>
 ```
